@@ -1,0 +1,46 @@
+# docker-compose.yml for the ETL project
+# This compose file defines two services: postgres and etl.
+#
+# Services:
+# 1. postgres:
+#    - Uses the official PostgreSQL 15 image.
+#    - Sets up environment variables for database, user, and password.
+#    - Maps container port 5432 to host port 5432.
+#    - Includes a healthcheck to ensure the database is ready before ETL starts.
+#
+# 2. etl:
+#    - Builds the ETL project Docker image from the local Dockerfile.
+#    - Depends on the postgres service being healthy before starting.
+#    - Sets environment variables to connect to the PostgreSQL database.
+#    - Maps container port 5000 to host port 5000 for the fake API.
+#    - Mounts the host's ./output folder to /app/output inside the container,
+#      ensuring any exported CSVs or output files persist on the host machine.
+version: '3.9'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: etl_user
+      POSTGRES_PASSWORD: etl_pass
+      POSTGRES_DB: etl_db 
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U etl_user -d etl_db"]
+      interval: 5s
+      retries: 5
+
+  etl:
+    build: .
+    volumes:
+      - ./output:/app/output
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_USER: etl_user
+      DB_PASSWORD: etl_pass
+      DB_NAME: etl_db
+    ports:
+      - "5000:5000"
